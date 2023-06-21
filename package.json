@@ -1,0 +1,29 @@
+{
+  "name": "iambus",
+  "version": "1.0.0",
+  "description": "minimalist pattern-matching pub-sub message-bus",
+  "main": "index.js",
+  "scripts": {
+    "test": "brittle test.js && npm run lint",
+    "lint": "standard"
+  },
+  "keywords": [
+    "message",
+    "bus",
+    "pubsub",
+    "pub",
+    "sub",
+    "minimal"
+  ],
+  "author": "Holepunch",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "fast-fifo": "^1.2.0",
+    "nanoassert": "^2.0.0",
+    "streamx": "^2.13.2"
+  },
+  "devDependencies": {
+    "brittle": "^3.3.2",
+    "standard": "^17.1.0"
+  }
+}
