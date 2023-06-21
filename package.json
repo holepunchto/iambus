@@ -24,5 +24,13 @@
   "devDependencies": {
     "brittle": "^3.3.2",
     "standard": "^17.1.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holepunchto/iambus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/holepunchto/iambus/issues"
+  },
+  "homepage": "https://github.com/holepunchto/iambus#readme"
 }
