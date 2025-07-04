@@ -3,6 +3,8 @@ const assert = require('nanoassert')
 const { Readable } = require('streamx')
 
 module.exports = class Iambus {
+  static match = matchesPattern
+  
   constructor () {
     this.subscribers = new Set()
   }

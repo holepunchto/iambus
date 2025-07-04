@@ -131,6 +131,10 @@ This should output:
 done
 ```
 
+## `Iambus.match(message, pattern) -> boolean` 
+
+Returns `true` if pattern matches message, `false` if not.
+
 ## Example
 
 The [example.mjs](./example.mjs) file contains both the resubscribing code and the message logger
