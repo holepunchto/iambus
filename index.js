@@ -63,7 +63,6 @@ class Subscriber extends streamx.PassThrough {
 
   _destroy (cb) {
     this.buffer.length = 0
-    for (const stream of this.subs) stream.destroy()
     this.bus.subscribers.delete(this)
     cb()
   }
