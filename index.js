@@ -5,7 +5,6 @@ const streamx = require('streamx')
 class Subscriber extends streamx.PassThrough {
   #replay = false
   set replay (replay) {
-    if (replay === false) this.buffer.length = 0
     return (this.#replay = replay)
   }
 
@@ -44,7 +43,10 @@ class Subscriber extends streamx.PassThrough {
   relay (subscriber) {
     if (subscriber.relayer === this) return subscriber
     if (subscriber.relayer) throw new Error('Iambus: subscriber already has relayer')
-    if (this.replay) for (const data of this.buffer) subscriber.push(data)
+    if (this.buffer.length > 0) {
+      for (const data of this.buffer) subscriber.push(data)
+      if (!this.replay) this.buffer.length = 0
+    }
     this.subs.add(subscriber)
     subscriber.relayer = this
     subscriber.on('close', () => this.subs.delete(subscriber))
