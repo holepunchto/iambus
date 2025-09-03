@@ -194,9 +194,9 @@ setImmediate(() => {
 })
 
 const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
+const consumerA = subscriber.relay(bus.sub({ another: 'pattern'}))
 setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
+  const consumerB = subscriber.relay(bus.sub({ relays: 'regardless'}))
   consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 }, 1000)
 
@@ -234,9 +234,9 @@ setImmediate(() => {
 })
 
 const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
+const consumerA = subscriber.relay(bus.sub({ another: 'pattern'}))
 setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
+  const consumerB = subscriber.relay(bus.sub({ relays: 'regardless'}))
   consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 }, 1000)
 
@@ -279,9 +279,9 @@ setImmediate(() => {
 })
 
 const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true, max: 2 })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
+const consumerA = subscriber.relay(bus.sub({ another: 'pattern'}))
 setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
+  const consumerB = subscriber.relay(bus.sub({ relays: 'regardless'}))
   consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 }, 1000)
 
