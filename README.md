@@ -326,7 +326,7 @@ setTimeout(() => { subscriber.replay = false }, 200)
 
 setTimeout(() => {
   // consumerB will replay one more time and clear the buffer
-  console.log('consumerB subscribes')
+  console.log('ConsumerB subscribes')
   const consumerB = subscriber.relay(bus.sub({ another: 'pattern'})) 
   consumerB.on('data', (data) => console.log('ConsumerB got', data))
 }, 400)
@@ -335,7 +335,7 @@ setTimeout(() => { bus.pub({ match: 'this', and: { also: 'this' }, content: 'aft
 
 setTimeout(() => {
   // consumerC will no longer replay as the buffer was cleared by consumerB
-  console.log('consumerC subscribes')
+  console.log('ConsumerC subscribes')
   const consumerC = subscriber.relay(bus.sub({ another: 'pattern'})) 
   consumerC.on('data', (data) => console.log('ConsumerC got', data)) 
 }, 600)
@@ -346,12 +346,12 @@ Will output:
 ```js
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content 2' }
-consumerB subscribes
+ConsumerB subscribes
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'initial content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'initial content 2' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'after consumerB' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'after consumerB' }
-consumerC subscribes
+ConsumerC subscribes
 ```
 
 Note that ConsumerB does receive the last message, this is becuase it's sent 500ms after the 1000ms timeout, so it's not replayed, it's just relays.
