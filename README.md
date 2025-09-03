@@ -307,7 +307,7 @@ ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more conten
 Note the missing "Hello world" message for ConsumerB.
 
 
-Setting `subscriber.replay` to `false` stops the buffer and causes the next subscription to consume the buffer:
+Setting `subscriber.replay` to `false` stops the buffering of messages and causes the next subscription to consume the buffer:
 
 ```js
 import Iambus from 'iambus'
