@@ -343,7 +343,7 @@ setTimeout(() => {
 
 Will output:
 
-```js
+```
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content 2' }
 ConsumerB subscribes
