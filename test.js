@@ -196,6 +196,37 @@ test('replay:true buffers and replays to relayed late consumer', async ({ plan, 
   alike(subscriber.buffer.length, 2)
 })
 
+test('clearBuffer() clears the buffer', async ({ plan, alike }) => {
+  plan(5)
+
+  const bus = new Iambus()
+  const subscriber = bus.sub({ topic: 'replay' }, { relays: true, replay: true })
+
+  bus.pub({ topic: 'replay', content: '1st' })
+  bus.pub({ topic: 'replay', content: '2nd' })
+
+  const consumer = subscriber.relay(bus.sub({ topic: 'replay' }))
+  const received = []
+  consumer.on('data', msg => received.push(msg))
+
+  await new Promise(resolve => setTimeout(resolve, 10))
+
+  alike(received[0], { topic: 'replay', content: '1st' })
+  alike(received[1], { topic: 'replay', content: '2nd' })
+  alike(subscriber.buffer.length, 2)
+
+  subscriber.clearBuffer()
+
+  const consumer2 = subscriber.relay(bus.sub({ topic: 'replay' }))
+  const received2 = []
+  consumer2.on('data', msg => received.push(msg))
+
+  await new Promise(resolve => setTimeout(resolve, 10))
+
+  alike(received2.length, 0)
+  alike(subscriber.buffer.length, 0)
+})
+
 test('replay:true drops oldest messages if max is reached', async ({ plan, alike }) => {
   plan(1)
 
@@ -218,8 +249,8 @@ test('replay:true drops oldest messages if max is reached', async ({ plan, alike
   ])
 })
 
-test('setting subscriber.replay = false clears buffer and skips relay replay', async ({ plan, alike, is }) => {
-  plan(2)
+test('setting subscriber.replay = false replays and clears buffer on next subscribe', async ({ plan, alike, is }) => {
+  plan(4)
 
   const bus = new Iambus()
   const subscriber = bus.sub({ topic: 'cut' }, { relays: true, replay: true })
@@ -229,7 +260,7 @@ test('setting subscriber.replay = false clears buffer and skips relay replay', a
 
   subscriber.replay = false
 
-  is(subscriber.buffer.length, 0)
+  is(subscriber.buffer.length, 2)
 
   const consumer = subscriber.relay(bus.sub({ topic: 'over' }))
   const received = []
@@ -238,7 +269,18 @@ test('setting subscriber.replay = false clears buffer and skips relay replay', a
   bus.pub({ topic: 'cut', content: '3rd' })
 
   await null // tick
-  alike(received, [{ topic: 'cut', content: '3rd' }])
+  alike(received, [{ topic: 'cut', content: '1st' }, { topic: 'cut', content: '2nd' }, { topic: 'cut', content: '3rd' }])
+
+  is(subscriber.buffer.length, 0)
+
+  const consumer2 = subscriber.relay(bus.sub({ topic: 'over' }))
+  const received2 = []
+
+  consumer2.on('data', msg => received2.push(msg))
+  bus.pub({ topic: 'cut', content: '4th' })
+
+  await null // tick
+  alike(received2, [{ topic: 'cut', content: '4th' }])
 })
 
 test('subscriber.relays = false disables relaying to others', async ({ plan, is }) => {
