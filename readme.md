@@ -307,46 +307,51 @@ ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more conten
 Note the missing "Hello world" message for ConsumerB.
 
 
-Setting `subscriber.replay` to `false` clears the buffer and stops buffering:
+Setting `subscriber.replay` to `false` stops the buffer and causes the next subscription to consume the buffer:
 
 ```js
 import Iambus from 'iambus'
 const bus = new Iambus()
 
-setImmediate(() => {
-  bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
-  setImmediate(() => {
-    bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
-    setTimeout(() => {
-      bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
-    }, 1500)
-  })
-})
+setImmediate(() => { bus.pub({ match: 'this', and: { also: 'this' }, content: 'initial content' }) })
+setImmediate(() => { bus.pub({ match: 'this', and: { also: 'this' }, content: 'initial content 2' }) })
 
 const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true})
-const consumerA = subscriber.relay(subscriber)
-setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber)
-  consumerB.on('data', (data) => console.log('ConsumerB got', data) )
-}, 1000)
 
-
-subscriber.on('data', (data) => console.log('Subscriber got', data) )
+const consumerA = subscriber.relay(bus.sub({ another: 'pattern'}))
 consumerA.on('data', (data) => console.log('ConsumerA got', data) )
 
-subscriber.replay = false
+// stop the buffer after 200ms, before consumerB subscribes
+setTimeout(() => { subscriber.replay = false }, 200)
+
+setTimeout(() => {
+  // consumerB will replay one more time and clear the buffer
+  console.log('consumerB subscribes')
+  const consumerB = subscriber.relay(bus.sub({ another: 'pattern'})) 
+  consumerB.on('data', (data) => console.log('ConsumerB got', data))
+}, 400)
+
+setTimeout(() => { bus.pub({ match: 'this', and: { also: 'this' }, content: 'after consumerB' }) }, 400)
+
+setTimeout(() => {
+  // consumerC will no longer replay as the buffer was cleared by consumerB
+  console.log('consumerC subscribes')
+  const consumerC = subscriber.relay(bus.sub({ another: 'pattern'})) 
+  consumerC.on('data', (data) => console.log('ConsumerC got', data)) 
+}, 600)
 ```
 
 Will output:
 
 ```js
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'initial content 2' }
+consumerB subscribes
+ConsumerB got { match: 'this', and: { also: 'this' }, content: 'initial content' }
+ConsumerB got { match: 'this', and: { also: 'this' }, content: 'initial content 2' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'after consumerB' }
+ConsumerB got { match: 'this', and: { also: 'this' }, content: 'after consumerB' }
+consumerC subscribes
 ```
 
 Note that ConsumerB does receive the last message, this is becuase it's sent 500ms after the 1000ms timeout, so it's not replayed, it's just relays.
