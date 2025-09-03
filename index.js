@@ -53,6 +53,10 @@ class Subscriber extends streamx.PassThrough {
     return subscriber
   }
 
+  clearBuffer () {
+    this.buffer.length = 0
+  }
+
   pushOnMatch (message) {
     if (matchesPattern(message, this.pattern)) {
       this.push(message)
