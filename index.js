@@ -38,6 +38,7 @@ class Subscriber extends streamx.PassThrough {
   }
 
   feed (subscriber) {
+    if (this.bus.subscribers.has(subscriber) === false) return subscriber
     for (const message of this.queue) {
       subscriber.pushOnMatch(message)
     }
@@ -45,7 +46,7 @@ class Subscriber extends streamx.PassThrough {
   }
 
   push (message) {
-    if (this.map) message = this.map(message)
+    if (this.map && message !== null) message = this.map(message)
     if (this.retain) {
       this.queue.push(message)
       // usage should avoid this case, but just in case, lose oldest:
@@ -66,7 +67,9 @@ class Subscriber extends streamx.PassThrough {
 
   _destroy (cb) {
     this.bus.subscribers.delete(this)
-    this.once('cutover', cb)
+    this.once('cutover', () => {
+      cb()
+    })
     this.cutover()
   }
 }
@@ -93,7 +96,9 @@ module.exports = class Iambus {
   }
 
   destroy () {
-    for (const subscriber of this.subscribers) subscriber.destroy()
+    for (const subscriber of this.subscribers) {
+      subscriber.destroy()
+    }
   }
 }
 

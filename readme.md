@@ -67,16 +67,6 @@ subscriber.on('data', (message) => {
 })
 ```
 
-A graceful stream close is also possible with the `end` method:
-
-```js
-// Listen for messages using 'data' event
-subscriber.on('data', (message) => {
-  console.log('Received one message:', message)
-  subscriber.end()
-})
-```
-
 ### Subscribing to all messages
 
 An empty pattern object can be used to subscribe to all messages on the bus:
