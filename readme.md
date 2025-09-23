@@ -51,7 +51,7 @@ When in async contexts (such as async functions or top-level ESM), a `for await.
 ```js
 for await (const message of subscriber) {
   console.log('Received one message:', message)
-  break
+  break // triggers destroy()
 }
 ```
 
@@ -88,54 +88,12 @@ async function msglogger () {
 msglogger().catch(console.error)
 ```
 
-## Resubscribing
- 
-To resubscribe create a new subscriber using `bus.sub(pattern)`. 
 
-```js
-import Iambus from 'iambus'
-
-const bus = new Iambus()
-
-let count = 0
-
-setImmediate(() => {
-  bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
-  setImmediate(() => {
-    bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
-    setImmediate(() => {
-      bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
-    })
-  })
-})
-
-for await (const message of bus.sub({ match: 'this', and: { also: 'this' } })) {
-  console.log('1st subscriber got', message)
-  if (++count === 2) break // destroy
-}
-
-for await (const message of bus.sub({ match: 'this', and: { also: 'this' } })) {
-  console.log('2nd subscriber got', message)
-  if (++count === 3) break // destroy
-}
-
-console.log('done')
-```
-
-This should output:
-
-```
-1st subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-1st subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-done
-```
-
-## Relaying & Replaying
+## Retain - `bus.sub(pattern, { [ retain = false ] })`
 
 For situations where a subscriber multiple consumers there's the `relays` option.
 
-Pass `relays:true` and then use the `subscriber.relay(subscriber)` method to relay to another subscriber.
+Pass `retain:true` and then use the `fromSubscriber.feed(toSubscriber)` method to relay to another subscriber.
 
 ```js
 import Iambus from 'iambus'
@@ -152,9 +110,9 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true })
-const consumerA = subscriber.relay(bus.sub({ another: 'pattern'}))
-const consumerB = subscriber.relay(bus.sub({ relays: 'regardless'}))
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
+const consumerA = subscriber.feed(bus.sub({ match: 'this'}))
+const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
 
 subscriber.on('data', (data) => console.log('Subscriber got', data) )
 consumerA.on('data', (data) => console.log('ConsumerA got', data) )
@@ -164,108 +122,26 @@ consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 should output:
 
 ```
+Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-```
-
-For cases where multiple consumers don't all begin consuming at the same time yet need to consume all of the same data the `replay` option can be used alongside the `relays` option.
-
-**Without** the `replay` option the following:
-
-```js
-import Iambus from 'iambus'
-const bus = new Iambus()
-
-setImmediate(() => {
-  bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
-  setImmediate(() => {
-    bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
-    setImmediate(() => {
-      bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
-    })
-  })
-})
-
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
-setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
-  consumerB.on('data', (data) => console.log('ConsumerB got', data) )
-}, 1000)
-
-
-subscriber.on('data', (data) => console.log('Subscriber got', data) )
-consumerA.on('data', (data) => console.log('ConsumerA got', data) )
-```
-
-Would output:
-
-```
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-```
-
-**With** the `replay` option, data is buffered internally and replayed:
-
-```js
-import Iambus from 'iambus'
-
-const bus = new Iambus()
-
-setImmediate(() => {
-  bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
-  setImmediate(() => {
-    bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
-    setImmediate(() => {
-      bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
-    })
-  })
-})
-
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
-setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
-  consumerB.on('data', (data) => console.log('ConsumerB got', data) )
-}, 1000)
-
-
-subscriber.on('data', (data) => console.log('Subscriber got', data) )
-consumerA.on('data', (data) => console.log('ConsumerA got', data) )
-
-```
-
-Which will output
-
-```
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-ConsumerB got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerB got { match: 'this', and: { also: 'this' }, content: 'more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
-The oldest message will be removed if the amount of buffered messages exceeds `opts.max`, which defaults to 32.
+The oldest message will be removed if the amount of queued messages exceeds `opts.max`, which defaults to 32.
+
+## Queue Limiting - `bus.sub(pattern, { [ retain = false ], [ max = 32 ] })`
 
 So setting `max:2` like so:
 
 ```js
 import Iambus from 'iambus'
+
 const bus = new Iambus()
 
 setImmediate(() => {
@@ -278,123 +154,132 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true, max: 2 })
-const consumerA = subscriber.relay(subscriber.relay(bus.sub({ another: 'pattern'})))
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true, max: 2 })
+const consumerA = subscriber.feed(bus.sub({ match: 'this'}))
 setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber.relay(bus.sub({ relays: 'regardless'})))
+  const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
   consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 }, 1000)
 
 
 subscriber.on('data', (data) => console.log('Subscriber got', data) )
 consumerA.on('data', (data) => console.log('ConsumerA got', data) )
+consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 
 ```
 
 Will output
 
 ```
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
 Note the missing "Hello world" message for ConsumerB.
 
+## Cutover - `subscriber.cutover(after = 0)`
 
-Setting `subscriber.replay` to `false` clears the buffer and stops buffering:
+Calling `subscriber.cutover()` clears the queue and stops retaining. 
+
+This should be called if `opts.retain` is set to `true`.
 
 ```js
 import Iambus from 'iambus'
+
 const bus = new Iambus()
 
 setImmediate(() => {
   bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
   setImmediate(() => {
     bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
+    subscriber.cutover()
     setTimeout(() => {
       bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
     }, 1500)
   })
 })
 
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true, replay: true})
-const consumerA = subscriber.relay(subscriber)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
+const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
 setTimeout(() => {
-  const consumerB = subscriber.relay(subscriber)
-  consumerB.on('data', (data) => console.log('ConsumerB got', data) )
+  const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
+  consumerB.on('data', (data) => console.log('ConsumerB got', data))
 }, 1000)
 
 
-subscriber.on('data', (data) => console.log('Subscriber got', data) )
-consumerA.on('data', (data) => console.log('ConsumerA got', data) )
-
-subscriber.replay = false
+subscriber.on('data', (data) => console.log('Subscriber got', data))
+consumerA.on('data', (data) => console.log('ConsumerA got', data))
 ```
 
 Will output:
 
 ```js
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
+Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
-Note that ConsumerB does receive the last message, this is becuase it's sent 500ms after the 1000ms timeout, so it's not replayed, it's just relays.
+Note that ConsumerB only recieves the last message, because cutover occurs before it subscribes so by then the queue is empty. 
 
-Relaying can also be stopped by setting `subscriber.relays` to `false`:ing
+Cutover can occur after a delay by passing an argument representing milliseonds until cutover:
 
 ```js
 import Iambus from 'iambus'
+
 const bus = new Iambus()
 
 setImmediate(() => {
   bus.pub({ match: 'this', and: { also: 'this' }, content: 'Hello, world!' })
-  subscriber.relays = false
   setImmediate(() => {
     bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
+    subscriber.cutover(1501)
     setTimeout(() => {
-      subscriber.relays = true
       bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
     }, 1500)
   })
 })
 
-const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { relays: true})
-const consumerA = subscriber.relay(subscriber)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
+const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
+setTimeout(() => {
+  const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
+  consumerB.on('data', (data) => console.log('ConsumerB got', data))
+}, 1000)
 
-const consumerB = subscriber.relay(subscriber)
-consumerB.on('data', (data) => console.log('ConsumerB got', data) )
 
-
-subscriber.on('data', (data) => console.log('Subscriber got', data) )
-consumerA.on('data', (data) => console.log('ConsumerA got', data) )
-
+subscriber.on('data', (data) => console.log('Subscriber got', data))
+consumerA.on('data', (data) => console.log('ConsumerA got', data))
 ```
 
 This will output:
 
 ```
-ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-ConsumerB got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 Subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
+ConsumerA got { match: 'this', and: { also: 'this' }, content: 'more content' }
+ConsumerB got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+ConsumerB got { match: 'this', and: { also: 'this' }, content: 'more content' }
+Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ConsumerA got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-Subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
-Note how only Subscriber got "more content", relays was turned off and then on, before and after that message was sent.
+The cutover happens after the final pub, so ConsumerB get's all messages.
 
+The `subscriber` will also emit a `cutover` event once cutover occurs.
+
+The `subcriber.cutover()` function may be called multiple times, the latest method call determines the outcome. This can be useful for strategies involving a delay fallback to cutover while allowing cutover to occur prior based on heuristics or manual calls - i.e. first call `subscriber.cutover(delay)` then later call `subscriber.cutover()` to cutover prior to the delay.
 
 ## `Iambus.match(message, pattern) -> boolean` 
 
@@ -403,7 +288,7 @@ Returns `true` if pattern matches message, `false` if not.
 
 ## Example
 
-The [example.mjs](./example.mjs) file contains both the resubscribing code and the message logger
+The [example.mjs](./example.mjs) file contains three subscribers and the message logger
 that uses an empty pattern to subscribe to all messages. 
 
 ```
@@ -415,8 +300,13 @@ Should output:
 ```sh
 1st subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 1st subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
+1st subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
+2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
 2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-done
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
 ```
@@ -426,14 +316,19 @@ node example.mjs --log
 Should output similar to:
 
 ```sh
-BUS MSG 2023-06-21T15:25:32.897Z - { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+BUS MSG 2025-09-23T18:09:00.584Z - { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
 1st subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
-BUS MSG 2023-06-21T15:25:32.901Z - { something: 'else', whatever: 'that might be' }
+BUS MSG 2025-09-23T18:09:00.596Z - { something: 'else', whatever: 'that might be' }
 1st subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
-BUS MSG 2023-06-21T15:25:32.901Z - { match: 'this', and: { also: 'this' }, content: 'more content' }
-BUS MSG 2023-06-21T15:25:32.902Z - { match: 'this', and: { also: 'this' }, content: 'even more content' }
+BUS MSG 2025-09-23T18:09:00.596Z - { match: 'this', and: { also: 'this' }, content: 'more content' }
+BUS MSG 2025-09-23T18:09:00.597Z - { match: 'this', and: { also: 'this' }, content: 'even more content' }
+1st subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
+2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
 2nd subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
-done
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'Hello, world!' }
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'more content' }
+3rd subscriber got { match: 'this', and: { also: 'this' }, content: 'even more content' }
 ```
 
 ## License

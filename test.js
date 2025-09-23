@@ -88,8 +88,8 @@ test('bus.sub({}) (empty pattern is catchall wildcard)', async ({ plan, alike })
   ], 'Received expected matching message')
 })
 
-test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is }) => {
-  plan(1)
+test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is, pass }) => {
+  plan(2)
   const bus = new Iambus()
   const received = []
   const matchingMessage = { topic: 'news', content: 'Hello, world!' }
@@ -99,6 +99,7 @@ test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is }) => 
   })
   bus.pub(matchingMessage)
   await new Promise(setImmediate) // skip tick for event propagation
+  subscriber.on('close', () => { pass('close') })
   subscriber.destroy()
   bus.pub({ topic: 'news', content: 'will be ignored' })
   await new Promise(setImmediate) // skip tick for event propagation
@@ -151,18 +152,17 @@ test('multiconsumer (w/ backpressure)', async ({ plan, alike }) => {
   subscribe()
 })
 
-test('subscriber.relay(toSubscriber) can relay replayed + live data', async ({ plan, alike, is }) => {
+test('subscriber.feed(toSubscriber) consumes data from subscriber queue', async ({ plan, alike, is }) => {
   plan(3)
 
   const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'live' }, { relays: true, replay: true })
+  const subscriber = bus.sub({ topic: 'live' }, { retain: true })
   bus.pub({ topic: 'live', content: '1st' })
-
-  const consumer = subscriber.relay(bus.sub({ topic: 'consume' }))
+  const consumer = bus.sub({ topic: 'live' })
+  subscriber.feed(consumer)
   const received = []
 
   consumer.on('data', (msg) => {
-    console.log('MSG', msg)
     received.push(msg)
     if (received.length === 2) {
       alike(received[0], { topic: 'live', content: '1st' })
@@ -176,37 +176,17 @@ test('subscriber.relay(toSubscriber) can relay replayed + live data', async ({ p
   is(received.length, 2)
 })
 
-test('replay:true buffers and replays to relayed late consumer', async ({ plan, alike }) => {
-  plan(3)
-
-  const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'replay' }, { relays: true, replay: true })
-
-  bus.pub({ topic: 'replay', content: '1st' })
-  bus.pub({ topic: 'replay', content: '2nd' })
-
-  const consumer = subscriber.relay(bus.sub({ topic: 'replay' }))
-  const received = []
-  consumer.on('data', msg => received.push(msg))
-
-  await new Promise(resolve => setTimeout(resolve, 10))
-
-  alike(received[0], { topic: 'replay', content: '1st' })
-  alike(received[1], { topic: 'replay', content: '2nd' })
-  alike(subscriber.buffer.length, 2)
-})
-
-test('replay:true drops oldest messages if max is reached', async ({ plan, alike }) => {
+test('retain:true drops oldest messages if max is reached', async ({ plan, alike }) => {
   plan(1)
 
   const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'max' }, { relays: true, replay: true, max: 2 })
+  const subscriber = bus.sub({ topic: 'max' }, { retain: true, max: 2 })
 
   bus.pub({ topic: 'max', content: '1st' })
   bus.pub({ topic: 'max', content: '2nd' })
   bus.pub({ topic: 'max', content: '3rd' })
 
-  const consumer = subscriber.relay(bus.sub({ topic: 'max' }))
+  const consumer = subscriber.feed(bus.sub({ topic: 'max' }))
   const received = []
 
   consumer.on('data', msg => received.push(msg))
@@ -218,57 +198,73 @@ test('replay:true drops oldest messages if max is reached', async ({ plan, alike
   ])
 })
 
-test('setting subscriber.replay = false clears buffer and skips relay replay', async ({ plan, alike, is }) => {
+test('subscriber.cutover() clears the queue', async ({ plan, alike, is }) => {
   plan(2)
 
   const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'cut' }, { relays: true, replay: true })
+  const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
 
-  bus.pub({ topic: 'cut', content: '1st' })
-  bus.pub({ topic: 'cut', content: '2nd' })
+  bus.pub({ topic: 'cutover', content: '1st' })
+  bus.pub({ topic: 'cutover', content: '2nd' })
 
-  subscriber.replay = false
+  subscriber.cutover()
+  await new Promise((resolve) => setTimeout(resolve, 1)) // default cutover after 0ms timeout
+  is(subscriber.queue.length, 0)
 
-  is(subscriber.buffer.length, 0)
-
-  const consumer = subscriber.relay(bus.sub({ topic: 'over' }))
+  const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
   const received = []
 
   consumer.on('data', msg => received.push(msg))
-  bus.pub({ topic: 'cut', content: '3rd' })
+  bus.pub({ topic: 'cutover', content: '3rd' })
 
   await null // tick
-  alike(received, [{ topic: 'cut', content: '3rd' }])
+  alike(received, [{ topic: 'cutover', content: '3rd' }])
 })
 
-test('subscriber.relays = false disables relaying to others', async ({ plan, is }) => {
-  plan(1)
+test('subscriber.cutover(after = T)', async ({ plan, alike, is }) => {
+  plan(3)
 
   const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'relay' }, { relays: true })
-  const consumer = subscriber.relay(bus.sub({ topic: 'consume' }))
+  const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
 
-  subscriber.relays = false
+  bus.pub({ topic: 'cutover', content: '1st' })
+  bus.pub({ topic: 'cutover', content: '2nd' })
 
+  subscriber.cutover(10)
+  await new Promise((resolve) => setTimeout(resolve, 1))
+  is(subscriber.queue.length, 2)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  is(subscriber.queue.length, 0)
+
+  const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
   const received = []
-  consumer.on('data', msg => received.push(msg))
 
-  bus.pub({ topic: 'relay', content: 'hidden' })
-  await new Promise(resolve => setTimeout(resolve, 10))
-  is(received.length, 0)
+  consumer.on('data', msg => received.push(msg))
+  bus.pub({ topic: 'cutover', content: '3rd' })
+
+  await null // tick
+  alike(received, [{ topic: 'cutover', content: '3rd' }])
 })
 
-test('relayed consumer removed on destroy', async ({ plan, is }) => {
-  plan(2)
+test('subscriber.cutover() emits cutover event', async ({ plan, alike, is }) => {
+  plan(3)
 
   const bus = new Iambus()
-  const subscriber = bus.sub({ topic: 'close' }, { relays: true })
-  const consumer = subscriber.relay(bus.sub({ topic: 'close' }))
+  const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
 
-  is(subscriber.subs.size, 1)
+  bus.pub({ topic: 'cutover', content: '1st' })
+  bus.pub({ topic: 'cutover', content: '2nd' })
+  subscriber.once('cutover', (after) => is(after, 2))
+  subscriber.cutover(2)
+  await new Promise((resolve) => setTimeout(resolve, 3)) // cutover after 2ms timeout
+  is(subscriber.queue.length, 0)
 
-  consumer.destroy()
-  await new Promise(resolve => setTimeout(resolve, 10))
+  const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
+  const received = []
 
-  is(subscriber.subs.size, 0)
+  consumer.on('data', msg => received.push(msg))
+  bus.pub({ topic: 'cutover', content: '3rd' })
+
+  await null // tick
+  alike(received, [{ topic: 'cutover', content: '3rd' }])
 })

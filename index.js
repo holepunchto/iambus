@@ -3,56 +3,57 @@ const assert = require('nanoassert')
 const streamx = require('streamx')
 
 class Subscriber extends streamx.PassThrough {
-  #replay = false
-  set replay (replay) {
-    if (replay === false) this.buffer.length = 0
-    return (this.#replay = replay)
-  }
+  _timeout = null
 
-  get replay () {
-    return this.#replay
-  }
-
-  relays = false
-  relayer = null
-  constructor (bus, pattern, opts) {
+  constructor (bus, pattern, opts = {}) {
     super(opts)
     this.bus = bus
     this.bus.subscribers.add(this)
     this.pattern = pattern
-    this.buffer = []
-    this.max = opts?.max ?? 32
-    this.subs = new Set()
-    if (opts?.relays) this.relays = opts.relays
-    if (opts?.replay) this.replay = opts.replay
-    if (typeof opts?.map === 'function') this.map = opts.map
+    this.queue = []
+    this.max = opts.max ?? 32
+    this.retain = opts.retain ?? false
+    this.opts = opts
+    if (typeof opts.map === 'function') this.map = opts.map
   }
 
-  push (data) {
-    if (this.map) data = this.map(data)
-    if (this.replay) {
-      this.buffer.push(data)
-      // usage should avoid this case, but just in case, lose oldest:
-      if (this.buffer.length > this.max) this.buffer.shift()
+  _cutover = (after) => {
+    this.queue.length = 0
+    clearTimeout(this._timeout)
+    this._timeout = null
+    this.off('close', this._cutover)
+    this.emit('cutover', after)
+  }
+
+  cutover (after = 0) {
+    if (this._timeout !== null) {
+      clearTimeout(this._timeout)
+      this._timeout = null
+      this.off('close', this._cutover)
     }
-    if (this.relays) for (const sub of this.subs) sub._fwd(data)
-    return super.push(data)
+    this._timeout = setTimeout(this._cutover, after, after)
+    this.once('close', this._cutover)
   }
 
-  _fwd (data) { return super.push(data) }
-
-  relay (subscriber) {
-    if (subscriber.relayer === this) return subscriber
-    if (subscriber.relayer) throw new Error('Iambus: subscriber already has relayer')
-    if (this.replay) for (const data of this.buffer) subscriber.push(data)
-    this.subs.add(subscriber)
-    subscriber.relayer = this
-    subscriber.on('close', () => this.subs.delete(subscriber))
+  feed (subscriber) {
+    for (const message of this.queue) {
+      subscriber.pushOnMatch(message)
+    }
     return subscriber
   }
 
+  push (message) {
+    if (this.map) message = this.map(message)
+    if (this.retain) {
+      this.queue.push(message)
+      // usage should avoid this case, but just in case, lose oldest:
+      if (this.queue.length > this.max) this.queue.shift()
+    }
+    return super.push(message)
+  }
+
   pushOnMatch (message) {
-    if (matchesPattern(message, this.pattern)) {
+    if (match(message, this.pattern)) {
       this.push(message)
     }
   }
@@ -62,17 +63,18 @@ class Subscriber extends streamx.PassThrough {
   }
 
   _destroy (cb) {
-    this.buffer.length = 0
     this.bus.subscribers.delete(this)
-    cb()
+    this.once('cutover', cb)
+    this.cutover()
   }
 }
 
 module.exports = class Iambus {
-  static match = matchesPattern
+  static match = match
   static Subscriber = Subscriber
-  constructor () {
+  constructor ({ onsub = () => {} } = {}) {
     this.subscribers = new Set()
+    this._onsub = onsub
   }
 
   pub (message) {
@@ -83,7 +85,9 @@ module.exports = class Iambus {
 
   sub (pattern, opts) {
     assert(typeof pattern === 'object' && pattern !== null, 'Pass a pattern object: bus.sub(pattern)')
-    return new Subscriber(this, pattern, opts)
+    const subscriber = new Subscriber(this, pattern, opts)
+    this._onsub(subscriber)
+    return subscriber
   }
 
   destroy () {
@@ -91,7 +95,7 @@ module.exports = class Iambus {
   }
 }
 
-function matchesPattern (message, pattern) {
+function match (message, pattern) {
   if (typeof pattern !== 'object' || pattern === null) return false
   for (const key in pattern) {
     if (Object.hasOwn(pattern, key) === false) continue
@@ -100,7 +104,7 @@ function matchesPattern (message, pattern) {
     const patternValue = pattern[key]
     const nested = typeof patternValue === 'object' && patternValue !== null && typeof messageValue === 'object' && messageValue !== null
     if (nested) {
-      if (matchesPattern(messageValue, patternValue) === false) return false
+      if (match(messageValue, patternValue) === false) return false
     } else if (messageValue !== patternValue) {
       return false
     }
