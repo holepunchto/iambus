@@ -1,6 +1,7 @@
 'use strict'
 const assert = require('nanoassert')
 const streamx = require('streamx')
+const FALLBACK_CUTOVER_DELAY = 180_000 // 3 minutes
 
 class Subscriber extends streamx.PassThrough {
   _timeout = null
@@ -13,6 +14,7 @@ class Subscriber extends streamx.PassThrough {
     this.queue = []
     this.max = opts.max ?? 32
     this.retain = opts.retain ?? false
+    if (this.retain) this.cutover(FALLBACK_CUTOVER_DELAY)
     this.opts = opts
     if (typeof opts.map === 'function') this.map = opts.map
   }
@@ -83,7 +85,7 @@ module.exports = class Iambus {
     }
   }
 
-  sub (pattern, opts) {
+  sub (pattern = {}, opts) {
     assert(typeof pattern === 'object' && pattern !== null, 'Pass a pattern object: bus.sub(pattern)')
     const subscriber = new Subscriber(this, pattern, opts)
     this._onsub(subscriber)

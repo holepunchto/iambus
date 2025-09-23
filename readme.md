@@ -135,6 +135,8 @@ ConsumerB got { match: 'this', and: { also: 'this' }, content: 'even more conten
 
 The oldest message will be removed if the amount of queued messages exceeds `opts.max`, which defaults to 32.
 
+Passing the `retain` option as true automatically triggers a cutover (clears the queue) after three minutes.
+
 ## Queue Limiting - `bus.sub(pattern, { [ retain = false ], [ max = 32 ] })`
 
 So setting `max:2` like so:
