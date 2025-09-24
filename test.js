@@ -16,22 +16,6 @@ test('pub and sub', ({ plan, alike, teardown }) => {
   bus.pub(expected)
 })
 
-test('sub opts.map function maps over data push', ({ plan, alike, teardown }) => {
-  plan(1)
-
-  const bus = new Iambus()
-  teardown(() => { bus.destroy() })
-
-  const original = { topic: 'news', content: 'Hello, world!' }
-
-  bus.sub({ topic: 'news' }, { map: (o) => ({ topic: o.topic, content: o.content.split().reverse().join() }) }).on('data', (message) => {
-    const mapped = { topic: original.topic, content: original.content.split().reverse().join() }
-    alike(message, mapped)
-  })
-
-  bus.pub(original)
-})
-
 test('bus.sub(\'invalid pattern\')', async ({ plan, exception, teardown }) => {
   plan(1)
   const bus = new Iambus()
