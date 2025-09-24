@@ -16,7 +16,6 @@ class Subscriber extends streamx.PassThrough {
     this.retain = opts.retain ?? false
     if (this.retain) this.cutover(FALLBACK_CUTOVER_DELAY)
     this.opts = opts
-    if (typeof opts.map === 'function') this.map = opts.map
   }
 
   _cutover = (after) => {
@@ -46,7 +45,6 @@ class Subscriber extends streamx.PassThrough {
   }
 
   push (message) {
-    if (this.map && message !== null) message = this.map(message)
     if (this.retain) {
       this.queue.push(message)
       // usage should avoid this case, but just in case, lose oldest:
