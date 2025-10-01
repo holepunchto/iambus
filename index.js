@@ -68,7 +68,7 @@ class Subscriber extends streamx.PassThrough {
     this.once('cutover', () => {
       cb()
     })
-    this.cutover()
+    this.cutover(0)
   }
 }
 
