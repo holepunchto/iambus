@@ -6,7 +6,9 @@ test('pub and sub', ({ plan, alike, teardown }) => {
   plan(1)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
   const expected = { topic: 'news', content: 'Hello, world!' }
 
   bus.sub({ topic: 'news' }).on('data', (message) => {
@@ -16,19 +18,29 @@ test('pub and sub', ({ plan, alike, teardown }) => {
   bus.pub(expected)
 })
 
-test('bus.sub(\'invalid pattern\')', async ({ plan, exception, teardown }) => {
+test("bus.sub('invalid pattern')", async ({ plan, exception, teardown }) => {
   plan(1)
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
-  exception(() => { bus.sub('invalid pattern') })
+  exception(() => {
+    bus.sub('invalid pattern')
+  })
 })
 
-test('bus.sub(pattern) - for await consume, matching and non-matching messages published', async ({ plan, alike, teardown }) => {
+test('bus.sub(pattern) - for await consume, matching and non-matching messages published', async ({
+  plan,
+  alike,
+  teardown
+}) => {
   plan(1)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
   const matchingMessage = { topic: 'news', content: 'Hello, world!' }
   const nonMatchingMessage = { topic: 'art', content: '<^_^>' }
@@ -53,11 +65,17 @@ test('bus.sub(pattern) - for await consume, matching and non-matching messages p
   alike(received, [matchingMessage, matchingMessage])
 })
 
-test('bus.sub({}) (empty pattern is catchall wildcard)', async ({ plan, alike, teardown }) => {
+test('bus.sub({}) (empty pattern is catchall wildcard)', async ({
+  plan,
+  alike,
+  teardown
+}) => {
   plan(1)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
   setImmediate(() => {
     bus.pub({ topic: 'news', content: 'Hello, world!' })
@@ -72,13 +90,22 @@ test('bus.sub({}) (empty pattern is catchall wildcard)', async ({ plan, alike, t
     received.push(message)
     if (received.length === 2) break
   }
-  alike(received, [
-    { topic: 'news', content: 'Hello, world!' },
-    { topic: 'art', content: '<^_^>' }
-  ], 'Received expected matching message')
+  alike(
+    received,
+    [
+      { topic: 'news', content: 'Hello, world!' },
+      { topic: 'art', content: '<^_^>' }
+    ],
+    'Received expected matching message'
+  )
 })
 
-test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is, pass, teardown }) => {
+test("subscribe().on('data',...) with sub.destroy()", async ({
+  plan,
+  is,
+  pass,
+  teardown
+}) => {
   plan(2)
   const bus = new Iambus()
 
@@ -90,7 +117,9 @@ test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is, pass,
   })
   bus.pub(matchingMessage)
   await new Promise(setImmediate) // skip tick for event propagation
-  subscriber.on('close', () => { pass('close') })
+  subscriber.on('close', () => {
+    pass('close')
+  })
   subscriber.destroy()
   bus.pub({ topic: 'news', content: 'will be ignored' })
   await new Promise(setImmediate) // skip tick for event propagation
@@ -100,7 +129,9 @@ test('subscribe().on(\'data\',...) with sub.destroy()', async ({ plan, is, pass,
 test('multiconsumer', async ({ plan, alike, teardown }) => {
   plan(4)
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
   setImmediate(() => {
     bus.pub({ topic: 'news', content: 'Hello, world!' })
@@ -125,7 +156,9 @@ test('multiconsumer', async ({ plan, alike, teardown }) => {
 test('multiconsumer (w/ backpressure)', async ({ plan, alike, teardown }) => {
   plan(8)
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
   setImmediate(() => {
     bus.pub({ topic: 'news', content: 'Hello, world 0' })
@@ -148,11 +181,18 @@ test('multiconsumer (w/ backpressure)', async ({ plan, alike, teardown }) => {
   subscribe()
 })
 
-test('subscriber.feed(toSubscriber) consumes data from subscriber queue', async ({ plan, alike, is, teardown }) => {
+test('subscriber.feed(toSubscriber) consumes data from subscriber queue', async ({
+  plan,
+  alike,
+  is,
+  teardown
+}) => {
   plan(3)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
 
   const subscriber = bus.sub({ topic: 'live' }, { retain: true })
   bus.pub({ topic: 'live', content: '1st' })
@@ -174,11 +214,17 @@ test('subscriber.feed(toSubscriber) consumes data from subscriber queue', async 
   is(received.length, 2)
 })
 
-test('retain:true drops oldest messages if max is reached', async ({ plan, alike, teardown }) => {
+test('retain:true drops oldest messages if max is reached', async ({
+  plan,
+  alike,
+  teardown
+}) => {
   plan(1)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
   const subscriber = bus.sub({ topic: 'max' }, { retain: true, max: 2 })
 
   bus.pub({ topic: 'max', content: '1st' })
@@ -188,8 +234,8 @@ test('retain:true drops oldest messages if max is reached', async ({ plan, alike
   const consumer = subscriber.feed(bus.sub({ topic: 'max' }))
   const received = []
   console.log('huwhut')
-  consumer.on('data', msg => received.push(msg))
-  await new Promise(resolve => setTimeout(resolve, 10))
+  consumer.on('data', (msg) => received.push(msg))
+  await new Promise((resolve) => setTimeout(resolve, 10))
 
   alike(received, [
     { topic: 'max', content: '2nd' },
@@ -197,11 +243,18 @@ test('retain:true drops oldest messages if max is reached', async ({ plan, alike
   ])
 })
 
-test('subscriber.cutover() clears the queue', async ({ plan, alike, is, teardown }) => {
+test('subscriber.cutover() clears the queue', async ({
+  plan,
+  alike,
+  is,
+  teardown
+}) => {
   plan(2)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
   const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
 
   bus.pub({ topic: 'cutover', content: '1st' })
@@ -214,7 +267,7 @@ test('subscriber.cutover() clears the queue', async ({ plan, alike, is, teardown
   const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
   const received = []
 
-  consumer.on('data', msg => received.push(msg))
+  consumer.on('data', (msg) => received.push(msg))
   bus.pub({ topic: 'cutover', content: '3rd' })
 
   await null // tick
@@ -225,7 +278,9 @@ test('subscriber.cutover(after = T)', async ({ plan, alike, is, teardown }) => {
   plan(3)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
   const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
 
   bus.pub({ topic: 'cutover', content: '1st' })
@@ -240,18 +295,25 @@ test('subscriber.cutover(after = T)', async ({ plan, alike, is, teardown }) => {
   const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
   const received = []
 
-  consumer.on('data', msg => received.push(msg))
+  consumer.on('data', (msg) => received.push(msg))
   bus.pub({ topic: 'cutover', content: '3rd' })
 
   await null // tick
   alike(received, [{ topic: 'cutover', content: '3rd' }])
 })
 
-test('subscriber.cutover() emits cutover event', async ({ plan, alike, is, teardown }) => {
+test('subscriber.cutover() emits cutover event', async ({
+  plan,
+  alike,
+  is,
+  teardown
+}) => {
   plan(3)
 
   const bus = new Iambus()
-  teardown(() => { bus.destroy() })
+  teardown(() => {
+    bus.destroy()
+  })
   const subscriber = bus.sub({ topic: 'cutover' }, { retain: true })
   bus.pub({ topic: 'cutover', content: '1st' })
   bus.pub({ topic: 'cutover', content: '2nd' })
@@ -263,7 +325,7 @@ test('subscriber.cutover() emits cutover event', async ({ plan, alike, is, teard
   const consumer = subscriber.feed(bus.sub({ topic: 'cutover' }))
   const received = []
 
-  consumer.on('data', msg => received.push(msg))
+  consumer.on('data', (msg) => received.push(msg))
   bus.pub({ topic: 'cutover', content: '3rd' })
 
   await null // tick
