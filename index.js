@@ -6,7 +6,7 @@ const FALLBACK_CUTOVER_DELAY = 180_000 // 3 minutes
 class Subscriber extends streamx.PassThrough {
   _timeout = null
 
-  constructor (bus, pattern, opts = {}) {
+  constructor(bus, pattern, opts = {}) {
     super(opts)
     this.bus = bus
     this.bus.subscribers.add(this)
@@ -27,7 +27,7 @@ class Subscriber extends streamx.PassThrough {
     this.emit('cutover', after)
   }
 
-  cutover (after = 0) {
+  cutover(after = 0) {
     if (this._timeout !== null) {
       clearTimeout(this._timeout)
       this._timeout = null
@@ -37,7 +37,7 @@ class Subscriber extends streamx.PassThrough {
     this.once('close', this._cutover)
   }
 
-  feed (subscriber) {
+  feed(subscriber) {
     if (this.bus.subscribers.has(subscriber) === false) return subscriber
     for (const message of this.queue) {
       subscriber.pushOnMatch(message)
@@ -45,7 +45,7 @@ class Subscriber extends streamx.PassThrough {
     return subscriber
   }
 
-  push (message) {
+  push(message) {
     if (this.retain) {
       this.queue.push(message)
       // usage should avoid this case, but just in case, lose oldest:
@@ -54,17 +54,17 @@ class Subscriber extends streamx.PassThrough {
     return super.push(message)
   }
 
-  pushOnMatch (message) {
+  pushOnMatch(message) {
     if (match(message, this.pattern)) {
       this.push(message)
     }
   }
 
-  end () {
+  end() {
     this.push(null)
   }
 
-  _destroy (cb) {
+  _destroy(cb) {
     this.bus.subscribers.delete(this)
     this.once('cutover', () => {
       cb()
@@ -76,39 +76,46 @@ class Subscriber extends streamx.PassThrough {
 module.exports = class Iambus {
   static match = match
   static Subscriber = Subscriber
-  constructor ({ onsub = () => {} } = {}) {
+  constructor({ onsub = () => {} } = {}) {
     this.subscribers = new Set()
     this._onsub = onsub
   }
 
-  pub (message) {
+  pub(message) {
     for (const subscriber of this.subscribers) {
       subscriber.pushOnMatch(message)
     }
   }
 
-  sub (pattern = {}, opts) {
-    assert(typeof pattern === 'object' && pattern !== null, 'Pass a pattern object: bus.sub(pattern)')
+  sub(pattern = {}, opts) {
+    assert(
+      typeof pattern === 'object' && pattern !== null,
+      'Pass a pattern object: bus.sub(pattern)'
+    )
     const subscriber = new Subscriber(this, pattern, opts)
     this._onsub(subscriber)
     return subscriber
   }
 
-  destroy () {
+  destroy() {
     for (const subscriber of this.subscribers) {
       subscriber.destroy()
     }
   }
 }
 
-function match (message, pattern) {
+function match(message, pattern) {
   if (typeof pattern !== 'object' || pattern === null) return false
   for (const key in pattern) {
     if (Object.hasOwn(pattern, key) === false) continue
     if (Object.hasOwn(message, key) === false) return false
     const messageValue = message[key]
     const patternValue = pattern[key]
-    const nested = typeof patternValue === 'object' && patternValue !== null && typeof messageValue === 'object' && messageValue !== null
+    const nested =
+      typeof patternValue === 'object' &&
+      patternValue !== null &&
+      typeof messageValue === 'object' &&
+      messageValue !== null
     if (nested) {
       if (match(messageValue, patternValue) === false) return false
     } else if (messageValue !== patternValue) {
