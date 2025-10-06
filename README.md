@@ -73,8 +73,7 @@ An empty pattern object can be used to subscribe to all messages on the bus:
 
 ```js
 async function msglogger() {
-  for await (const message of bus.sub({}))
-    console.log('BUS MSG', Date.now(), ' - ', message)
+  for await (const message of bus.sub({})) console.log('BUS MSG', Date.now(), ' - ', message)
 }
 msglogger().catch(console.error)
 ```
@@ -104,10 +103,7 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub(
-  { match: 'this', and: { also: 'this' } },
-  { retain: true }
-)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
 const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
 const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
 
@@ -157,10 +153,7 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub(
-  { match: 'this', and: { also: 'this' } },
-  { retain: true, max: 2 }
-)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true, max: 2 })
 const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
 setTimeout(() => {
   const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
@@ -213,10 +206,7 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub(
-  { match: 'this', and: { also: 'this' } },
-  { retain: true }
-)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
 const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
 setTimeout(() => {
   const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))
@@ -263,10 +253,7 @@ setImmediate(() => {
   })
 })
 
-const subscriber = bus.sub(
-  { match: 'this', and: { also: 'this' } },
-  { retain: true }
-)
+const subscriber = bus.sub({ match: 'this', and: { also: 'this' } }, { retain: true })
 const consumerA = subscriber.feed(bus.sub({ match: 'this' }))
 setTimeout(() => {
   const consumerB = subscriber.feed(bus.sub({ and: { also: 'this' } }))

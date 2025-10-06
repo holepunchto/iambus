@@ -6,8 +6,7 @@ const bus = new Iambus()
 const log = process.argv.includes('--log')
 
 async function msglogger() {
-  for await (const message of bus.sub({}))
-    console.log('BUS MSG', new Date(), '-', message)
+  for await (const message of bus.sub({})) console.log('BUS MSG', new Date(), '-', message)
 }
 
 if (log) msglogger().catch(console.error)
