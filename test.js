@@ -65,11 +65,7 @@ test('bus.sub(pattern) - for await consume, matching and non-matching messages p
   alike(received, [matchingMessage, matchingMessage])
 })
 
-test('bus.sub({}) (empty pattern is catchall wildcard)', async ({
-  plan,
-  alike,
-  teardown
-}) => {
+test('bus.sub({}) (empty pattern is catchall wildcard)', async ({ plan, alike, teardown }) => {
   plan(1)
 
   const bus = new Iambus()
@@ -100,12 +96,7 @@ test('bus.sub({}) (empty pattern is catchall wildcard)', async ({
   )
 })
 
-test("subscribe().on('data',...) with sub.destroy()", async ({
-  plan,
-  is,
-  pass,
-  teardown
-}) => {
+test("subscribe().on('data',...) with sub.destroy()", async ({ plan, is, pass, teardown }) => {
   plan(2)
   const bus = new Iambus()
 
@@ -214,11 +205,7 @@ test('subscriber.feed(toSubscriber) consumes data from subscriber queue', async 
   is(received.length, 2)
 })
 
-test('retain:true drops oldest messages if max is reached', async ({
-  plan,
-  alike,
-  teardown
-}) => {
+test('retain:true drops oldest messages if max is reached', async ({ plan, alike, teardown }) => {
   plan(1)
 
   const bus = new Iambus()
@@ -243,12 +230,7 @@ test('retain:true drops oldest messages if max is reached', async ({
   ])
 })
 
-test('subscriber.cutover() clears the queue', async ({
-  plan,
-  alike,
-  is,
-  teardown
-}) => {
+test('subscriber.cutover() clears the queue', async ({ plan, alike, is, teardown }) => {
   plan(2)
 
   const bus = new Iambus()
@@ -302,12 +284,7 @@ test('subscriber.cutover(after = T)', async ({ plan, alike, is, teardown }) => {
   alike(received, [{ topic: 'cutover', content: '3rd' }])
 })
 
-test('subscriber.cutover() emits cutover event', async ({
-  plan,
-  alike,
-  is,
-  teardown
-}) => {
+test('subscriber.cutover() emits cutover event', async ({ plan, alike, is, teardown }) => {
   plan(3)
 
   const bus = new Iambus()
