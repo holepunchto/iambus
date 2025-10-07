@@ -93,6 +93,20 @@ module.exports = class Iambus {
     return subscriber
   }
 
+  subof (pattern = {}, { max = 1 } = {}) {
+    assert(typeof pattern === 'object' && pattern !== null, 'Pass a pattern object: bus.subof(pattern)')
+
+    const found = []
+    for (const subscriber of this.subscribers) {
+      if (match(subscriber.pattern, pattern)) {
+        found.push(subscriber)
+        if (found.length >= max) break
+      }
+    }
+
+    return max === 1 ? found?.[0] : found
+  }
+
   destroy () {
     for (const subscriber of this.subscribers) {
       subscriber.destroy()

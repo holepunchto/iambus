@@ -269,3 +269,24 @@ test('subscriber.cutover() emits cutover event', async ({ plan, alike, is, teard
   await null // tick
   alike(received, [{ topic: 'cutover', content: '3rd' }])
 })
+
+test('bus.subof()', async ({ plan, is, alike, teardown }) => {
+  plan(7)
+
+  const bus = new Iambus()
+  teardown(() => { bus.destroy() })
+
+  is(bus.subof({ topic: 'nonexistent' }), undefined, 'should fail to find non-existent subscription')
+
+  const sub = bus.sub({ topic: 'news', id: 1 })
+  is(bus.subof({ topic: 'news' }), sub, 'should find single subscription')
+  is(bus.subof({ topic: 'news' }, { max: 3 })?.[0], sub, 'should find single subscription with max > 1')
+
+  bus.sub({ topic: 'news', id: 2 })
+  is(bus.subof({ topic: 'news' }), sub, 'should still find single subscription (the first one)')
+  is(bus.subof({ topic: 'news' }, { max: 3 }).length, 2, 'should find two subscriptions with max = 3')
+
+  bus.sub({ topic: 'news', id: 3 })
+  is(bus.subof({ topic: 'news' }), sub, 'should still find single subscription (the first one)')
+  is(bus.subof({ topic: 'news' }, { max: 2 }).length, 2, 'should only find 2 out of 3 subscriptions with max = 2')
+})
