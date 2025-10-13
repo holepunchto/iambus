@@ -20,6 +20,7 @@ class Subscriber extends streamx.PassThrough {
 
   _cutover = (after) => {
     this.queue.length = 0
+    this.retain = false
     clearTimeout(this._timeout)
     this._timeout = null
     this.off('close', this._cutover)
