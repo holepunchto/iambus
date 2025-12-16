@@ -5,7 +5,7 @@ import Iambus from './index.js'
 const bus = new Iambus()
 const log = process.argv.includes('--log')
 
-async function msglogger () {
+async function msglogger() {
   for await (const message of bus.sub({})) console.log('BUS MSG', new Date(), '-', message)
 }
 
@@ -17,7 +17,11 @@ setImmediate(() => {
     bus.pub({ something: 'else', whatever: 'that might be' })
     bus.pub({ match: 'this', and: { also: 'this' }, content: 'more content' })
     setImmediate(() => {
-      bus.pub({ match: 'this', and: { also: 'this' }, content: 'even more content' })
+      bus.pub({
+        match: 'this',
+        and: { also: 'this' },
+        content: 'even more content'
+      })
     })
   })
 })

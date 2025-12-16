@@ -4,8 +4,11 @@
   "description": "minimalist pattern-matching pub-sub message-bus",
   "main": "index.js",
   "scripts": {
-    "test": "brittle test.js && npm run lint",
-    "lint": "standard"
+    "format": "prettier --write .",
+    "lint": "prettier --check . && lunte",
+    "test": "npm run test:node && npm run test:bare",
+    "test:node": "brittle-node test.js",
+    "test:bare": "brittle-bare test.js"
   },
   "keywords": [
     "message",
@@ -23,7 +26,9 @@
   },
   "devDependencies": {
     "brittle": "^3.3.2",
-    "standard": "^17.1.0"
+    "lunte": "^1.0.0",
+    "prettier": "^3.6.2",
+    "prettier-config-holepunch": "^2.0.0"
   },
   "repository": {
     "type": "git",
