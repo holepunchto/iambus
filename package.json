@@ -22,6 +22,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "nanoassert": "^2.0.0",
+    "ptnm": "^1.0.0",
     "streamx": "^2.13.2"
   },
   "devDependencies": {
